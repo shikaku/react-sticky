@@ -28,7 +28,7 @@ export default class Sticky extends Component {
   state = {
     isSticky: false,
     wasSticky: false,
-    style: { }
+    style: { },
   }
 
   componentWillMount() {
@@ -57,24 +57,44 @@ export default class Sticky extends Component {
     const placeholderClientRect = this.placeholder.getBoundingClientRect();
     const contentClientRect = this.content.getBoundingClientRect();
     const calculatedHeight = contentClientRect.height;
+    const viewportHeight = window.innerHeight;
+    const distance = distanceFromTop - (this.state.distanceFromTop || distanceFromTop + contentClientRect.top);
 
     const bottomDifference = distanceFromBottom - this.props.bottomOffset - calculatedHeight;
 
     const wasSticky = !!this.state.isSticky;
     const isSticky = preventingStickyStateChanges ? wasSticky : (distanceFromTop <= -this.props.topOffset && distanceFromBottom > -this.props.bottomOffset);
 
-    distanceFromBottom = (this.props.relative ? parent.scrollHeight - parent.scrollTop : distanceFromBottom) - calculatedHeight;
+    const isContentHuge = contentClientRect.height > viewportHeight;
+    const isDownward = distanceFromTop < this.state.distanceFromTop;
+
+    const top = !isContentHuge
+      ? (bottomDifference > 0 ? (this.props.relative ? parent.offsetTop - parent.offsetParent.scrollTop : 0) : bottomDifference)
+      : (isDownward
+        ? (contentClientRect.bottom > viewportHeight
+          ? contentClientRect.top + distance
+          : (distanceFromBottom > viewportHeight
+            ? viewportHeight - calculatedHeight
+            : bottomDifference
+          )
+        ) : (contentClientRect.top < 0
+          ? contentClientRect.top + distance
+          : 0
+        )
+      );
 
     const style = !isSticky ? { } : {
       position: 'fixed',
-      top: bottomDifference > 0 ? (this.props.relative ? parent.offsetTop - parent.offsetParent.scrollTop : 0) : bottomDifference,
+      top,
       left: placeholderClientRect.left,
-      width: placeholderClientRect.width
+      width: placeholderClientRect.width,
     }
 
     if (!this.props.disableHardwareAcceleration) {
       style.transform = 'translateZ(0)';
     }
+
+    distanceFromBottom = (this.props.relative ? parent.scrollHeight - parent.scrollTop : distanceFromBottom) - calculatedHeight;
 
     this.setState({
       isSticky,
